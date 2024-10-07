@@ -1089,7 +1089,7 @@ Allows you to configure hard technical limits, to prevent abuse and optimize for
 considered idle by other parties and therefore terminated. See
 https://websockets.readthedocs.io/en/stable/topics/timeouts.html.
 
-### REST
+## REST
 
 | Variable                       | Description                                                                                                                                                                                             | Default Value |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
@@ -1099,7 +1099,7 @@ https://websockets.readthedocs.io/en/stable/topics/timeouts.html.
 | `WEBSOCKETS_REST_AUTH`         | The method of authentication to require for this connection. One of `public`, `handshake` or `strict`. Refer to the [authentication guide](/guides/real-time/authentication.html) for more information. | `handshake`   |
 | `WEBSOCKETS_REST_AUTH_TIMEOUT` | The amount of time in seconds to wait before closing an unauthenticated connection.                                                                                                                     | 30            |
 
-### GraphQL
+## GraphQL
 
 | Variable                          | Description                                                                                                                                                                                             | Default Value |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
@@ -1109,7 +1109,7 @@ https://websockets.readthedocs.io/en/stable/topics/timeouts.html.
 | `WEBSOCKETS_GRAPHQL_AUTH`         | The method of authentication to require for this connection. One of `public`, `handshake` or `strict`. Refer to the [authentication guide](/guides/real-time/authentication.html) for more information. | `handshake`   |
 | `WEBSOCKETS_GRAPHQL_AUTH_TIMEOUT` | The amount of time in seconds to wait before closing an unauthenticated connection.                                                                                                                     | 30            |
 
-### Logs
+## Logs
 
 The WebSocket Logs endpoint is accessible at `/websocket/logs`. The method of authentication is limited to `strict` and
 the connection will be disconnected when the authentication expires. Refer to the
