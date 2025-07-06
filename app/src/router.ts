@@ -2,6 +2,7 @@ import { refresh } from '@/auth';
 import { hydrate } from '@/hydrate';
 import AcceptInviteRoute from '@/routes/accept-invite.vue';
 import LoginRoute from '@/routes/login/login.vue';
+import LoginLinkRoute from '@/routes/login-link.vue';
 import LogoutRoute from '@/routes/logout.vue';
 import PrivateNotFoundRoute from '@/routes/private-not-found.vue';
 import RegisterRoute from '@/routes/register/register.vue';
@@ -51,6 +52,14 @@ export const defaultRoutes: RouteRecordRaw[] = [
 		name: 'accept-invite',
 		path: '/accept-invite',
 		component: AcceptInviteRoute,
+		meta: {
+			public: true,
+		},
+	},
+	{
+		name: 'login-link',
+		path: '/login-link',
+		component: LoginLinkRoute,
 		meta: {
 			public: true,
 		},

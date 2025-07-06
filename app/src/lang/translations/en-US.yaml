@@ -1736,6 +1736,11 @@ already_have_an_account: Already have an account?
 sign_up_now: Sign up now
 sign_in: Sign In
 sign_out: Sign Out
+get_login_link: Get Login Link
+login_with_email_and_password: Login With Email And Password
+login_with_email_only: Login With Email Only
+logging_you_in: Logging You In
+login_link_sent: A login link has been sent to your email
 sign_out_confirm: Are you sure you want to sign out?
 something_went_wrong: Something went wrong.
 sort_direction: Sort Direction

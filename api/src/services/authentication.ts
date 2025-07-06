@@ -1,8 +1,10 @@
 import { Action } from '@directus/constants';
 import { useEnv } from '@directus/env';
 import {
+	ForbiddenError,
 	InvalidCredentialsError,
 	InvalidOtpError,
+	InvalidPayloadError,
 	ServiceUnavailableError,
 	UserSuspendedError,
 } from '@directus/errors';
@@ -26,8 +28,14 @@ import { stall } from '../utils/stall.js';
 import { ActivityService } from './activity.js';
 import { SettingsService } from './settings.js';
 import { TFAService } from './tfa.js';
+import isUrlAllowed from '../utils/is-url-allowed.js';
+import { MailService } from './mail/index.js';
+import { Url } from '../utils/url.js';
+import { verifyJWT } from '../utils/jwt.js';
+import { useLogger } from '../logger/index.js';
 
 const env = useEnv();
+const logger = useLogger();
 
 const loginAttemptsLimiter = createRateLimiter('RATE_LIMITER', { duration: 0 });
 
@@ -541,5 +549,215 @@ export class AuthenticationService {
 
 		const provider = getAuthProvider(user.provider);
 		await provider.verify(clone(user), password);
+	}
+
+	/**
+	 * Get basic information of user identified by email
+	 */
+	private async getUserByEmail(email: string): Promise<User | undefined> {
+		return this.knex
+			.select(
+				'id',
+				'first_name',
+				'last_name',
+				'email',
+				'password',
+				'status',
+				'role',
+				'tfa_secret',
+				'provider',
+				'external_identifier',
+				'auth_data',
+			)
+			.from('directus_users')
+			.whereRaw(`LOWER(??) = ?`, ['email', email.toLowerCase()])
+			.first();
+	}
+
+	async requestLoginLink(email: string, url: string | null, subject?: string | null): Promise<void> {
+		const STALL_TIME = 500;
+		const timeStart = performance.now();
+
+		const user = await this.getUserByEmail(email);
+
+		if (user?.status !== 'active') {
+			await stall(STALL_TIME, timeStart);
+			throw new ForbiddenError();
+		}
+
+		if (url && isUrlAllowed(url, env['LOGIN_LINK_URL_ALLOW_LIST'] as string) === false) {
+			throw new InvalidPayloadError({ reason: `URL "${url}" can't be used to send login links` });
+		}
+
+		const mailService = new MailService({
+			schema: this.schema,
+			knex: this.knex,
+			accountability: this.accountability,
+		});
+
+		const payload = { email: user.email, scope: 'login-link' };
+		const token = jwt.sign(payload, getSecret(), { expiresIn: '15m', issuer: 'directus' });
+
+		const acceptUrl = (url ? new Url(url) : new Url(env['PUBLIC_URL'] as string).addPath('admin', 'login-link'))
+			.setQuery('token', token)
+			.toString();
+
+		const subjectLine = subject ? subject : 'Login Link Request';
+
+		mailService
+			.send({
+				to: user.email!,
+				subject: subjectLine,
+				template: {
+					name: 'login-link',
+					data: {
+						url: acceptUrl,
+						email: user.email,
+					},
+				},
+			})
+			.catch((error) => {
+				logger.error(error, `Could not send login link email`);
+			});
+
+		await stall(STALL_TIME, timeStart);
+	}
+
+	async verifyLoginLink(
+		token: string,
+		options?: Partial<{
+			session: boolean;
+		}>,
+	): Promise<LoginResult> {
+		const { email, scope } = verifyJWT(token, getSecret()) as {
+			email: string;
+			scope: string;
+		};
+
+		if (scope !== 'login-link') throw new ForbiddenError();
+
+		const user = await this.getUserByEmail(email);
+
+		const { nanoid } = await import('nanoid');
+
+		const STALL_TIME = env['LOGIN_STALL_TIME'] as number;
+		const timeStart = performance.now();
+
+		if (user?.status !== 'active') {
+			await stall(STALL_TIME, timeStart);
+			throw new InvalidCredentialsError();
+		}
+
+		const settingsService = new SettingsService({
+			knex: this.knex,
+			schema: this.schema,
+		});
+
+		const { auth_login_attempts: allowedAttempts } = await settingsService.readSingleton({
+			fields: ['auth_login_attempts'],
+		});
+
+		if (allowedAttempts !== null) {
+			loginAttemptsLimiter.points = allowedAttempts;
+
+			try {
+				await loginAttemptsLimiter.consume(user.id);
+			} catch (error) {
+				if (error instanceof RateLimiterRes && error.remainingPoints === 0) {
+					await this.knex('directus_users').update({ status: 'suspended' }).where({ id: user.id });
+					user.status = 'suspended';
+
+					// This means that new attempts after the user has been re-activated will be accepted
+					await loginAttemptsLimiter.set(user.id, 0, 0);
+				} else {
+					throw new ServiceUnavailableError({
+						service: 'authentication',
+						reason: 'Rate limiter unreachable',
+					});
+				}
+			}
+		}
+
+		const roles = await fetchRolesTree(user.role, this.knex);
+
+		const globalAccess = await fetchGlobalAccess(
+			{ roles, user: user.id, ip: this.accountability?.ip ?? null },
+			this.knex,
+		);
+
+		const tokenPayload: DirectusTokenPayload = {
+			id: user.id,
+			role: user.role,
+			app_access: globalAccess.app,
+			admin_access: globalAccess.admin,
+		};
+
+		const refreshToken = nanoid(64);
+		const refreshTokenExpiration = new Date(Date.now() + getMilliseconds(env['REFRESH_TOKEN_TTL'], 0));
+
+		if (options?.session) {
+			tokenPayload.session = refreshToken;
+		}
+
+		const customClaims = await emitter.emitFilter(
+			'auth.jwt',
+			tokenPayload,
+			{
+				status: 'pending',
+				user: user?.id,
+				provider: user.provider,
+				type: 'login',
+			},
+			{
+				database: this.knex,
+				schema: this.schema,
+				accountability: this.accountability,
+			},
+		);
+
+		const TTL = env[options?.session ? 'SESSION_COOKIE_TTL' : 'ACCESS_TOKEN_TTL'] as StringValue | number;
+
+		const accessToken = jwt.sign(customClaims, getSecret(), {
+			expiresIn: TTL,
+			issuer: 'directus',
+		});
+
+		await this.knex('directus_sessions').insert({
+			token: refreshToken,
+			user: user.id,
+			expires: refreshTokenExpiration,
+			ip: this.accountability?.ip,
+			user_agent: this.accountability?.userAgent,
+			origin: this.accountability?.origin,
+		});
+
+		await this.knex('directus_sessions').delete().where('expires', '<', new Date());
+
+		if (this.accountability) {
+			await this.activityService.createOne({
+				action: Action.LOGIN,
+				user: user.id,
+				ip: this.accountability.ip,
+				user_agent: this.accountability.userAgent,
+				origin: this.accountability.origin,
+				collection: 'directus_users',
+				item: user.id,
+			});
+		}
+
+		await this.knex('directus_users').update({ last_access: new Date() }).where({ id: user.id });
+
+		if (allowedAttempts !== null) {
+			await loginAttemptsLimiter.set(user.id, 0, 0);
+		}
+
+		await stall(STALL_TIME, timeStart);
+
+		return {
+			accessToken,
+			refreshToken,
+			expires: getMilliseconds(TTL),
+			id: user.id,
+		};
 	}
 }

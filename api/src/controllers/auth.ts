@@ -1,6 +1,6 @@
 import { useEnv } from '@directus/env';
 import { ErrorCode, InvalidPayloadError, isDirectusError } from '@directus/errors';
-import type { Accountability } from '@directus/types';
+import type { Accountability, User } from '@directus/types';
 import type { Request } from 'express';
 import { Router } from 'express';
 import {
@@ -23,6 +23,8 @@ import { getIPFromReq } from '../utils/get-ip-from-req.js';
 import { getSecret } from '../utils/get-secret.js';
 import isDirectusJWT from '../utils/is-directus-jwt.js';
 import { verifyAccessJWT } from '../utils/jwt.js';
+import Joi from 'joi';
+import { stall } from '../utils/stall.js';
 
 const router = Router();
 const env = useEnv();
@@ -244,6 +246,94 @@ router.post(
 
 		const service = new UsersService({ accountability, schema: req.schema });
 		await service.resetPassword(req.body.token, req.body.password);
+		return next();
+	}),
+	respond,
+);
+
+const loginLinkRequestSchema = Joi.object<{ email: NonNullable<User['email']> }>({
+	email: Joi.string().email().required(),
+});
+
+router.post(
+	'/login-link/request',
+	asyncHandler(async (req, _res, next) => {
+		const { error, value } = loginLinkRequestSchema.validate(req.body);
+		if (error) throw new InvalidPayloadError({ reason: error.message });
+
+		const accountability: Accountability = createDefaultAccountability({ ip: getIPFromReq(req) });
+
+		const userAgent = req.get('user-agent')?.substring(0, 1024);
+		if (userAgent) accountability.userAgent = userAgent;
+
+		const origin = req.get('origin');
+		if (origin) accountability.origin = origin;
+
+		const authService = new AuthenticationService({ accountability, schema: req.schema });
+		await authService.requestLoginLink(value.email, req.body.login_link_url || null);
+
+		return next();
+	}),
+	respond,
+);
+
+const loginLinkVerifySchema = Joi.object<{ token: string; mode: 'session' | 'cookie' | 'json' }>({
+	token: Joi.string().required(),
+	mode: Joi.string().valid('cookie', 'json', 'session'),
+});
+
+router.post(
+	'/login-link/verify',
+	asyncHandler(async (req, res, next) => {
+		const STALL_TIME = env['LOGIN_STALL_TIME'] as number;
+		const timeStart = performance.now();
+
+		const accountability: Accountability = createDefaultAccountability({
+			ip: getIPFromReq(req),
+		});
+
+		const userAgent = req.get('user-agent')?.substring(0, 1024);
+		if (userAgent) accountability.userAgent = userAgent;
+
+		const origin = req.get('origin');
+		if (origin) accountability.origin = origin;
+
+		const authenticationService = new AuthenticationService({
+			accountability: accountability,
+			schema: req.schema,
+		});
+
+		const { error, value } = loginLinkVerifySchema.validate(req.body);
+
+		if (error) {
+			await stall(STALL_TIME, timeStart);
+			throw new InvalidPayloadError({ reason: error.message });
+		}
+
+		const mode: AuthenticationMode = req.body.mode ?? 'json';
+
+		const { accessToken, refreshToken, expires } = await authenticationService.verifyLoginLink(value.token, {
+			session: mode === 'session',
+		});
+
+		const payload = { expires } as { expires: number; access_token?: string; refresh_token?: string };
+
+		if (mode === 'json') {
+			payload.refresh_token = refreshToken;
+			payload.access_token = accessToken;
+		}
+
+		if (mode === 'cookie') {
+			res.cookie(env['REFRESH_TOKEN_COOKIE_NAME'] as string, refreshToken, REFRESH_COOKIE_OPTIONS);
+			payload.access_token = accessToken;
+		}
+
+		if (mode === 'session') {
+			res.cookie(env['SESSION_COOKIE_NAME'] as string, accessToken, SESSION_COOKIE_OPTIONS);
+		}
+
+		res.locals['payload'] = { data: payload };
+
 		return next();
 	}),
 	respond,

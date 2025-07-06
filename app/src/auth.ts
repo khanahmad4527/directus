@@ -78,6 +78,31 @@ export async function login({ credentials, provider, share }: LoginParams): Prom
 	await hydrate();
 }
 
+export async function loginLink({ token }: { token: string }): Promise<void> {
+	const appStore = useAppStore();
+	const serverStore = useServerStore();
+
+	const login =
+		<Schema extends object>(): RestCommand<AuthenticationData, Schema> =>
+		() => {
+			const path = '/auth/login-link/verify';
+			const data = { token, mode: 'session' };
+			return { path, method: 'POST', body: JSON.stringify(data) };
+		};
+
+	await sdk.request(login());
+	// To initialize auto-refresh
+	const response = await sdk.refresh();
+
+	appStore.accessTokenExpiry = Date.now() + (response.expires ?? 0);
+	appStore.authenticated = true;
+
+	// Reload server store to get authenticated data
+	serverStore.hydrate();
+
+	await hydrate();
+}
+
 let idle = false;
 let firstRefresh = true;
 

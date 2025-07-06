@@ -1,0 +1,40 @@
+{% layout "base" %} 
+{% block content %}
+
+<h1>Access your {{ projectName }} account</h1>
+
+<p style="padding-bottom: 30px">
+  You requested a login link to access your <i>{{ projectName }}</i> account.
+  If you did not request this, please ignore this message or contact an administrator.
+  Otherwise, click the button below to log in securely.
+</p>
+
+<a
+  class="button"
+  rel="noopener"
+  target="_blank"
+  href="{{ url }}"
+  style="
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    text-decoration: none;
+    display: inline-block;
+    padding: 11px 24px;
+    border-radius: 8px;
+    background: #171717;
+    border: 1px solid #ffffff;
+  "
+>
+  <!--[if mso]>
+    <i style="letter-spacing: 25px; mso-font-width: -100%; mso-text-raise: 30pt">&nbsp;</i>
+  <![endif]-->
+  <span style="mso-text-raise: 15pt">Log In to {{ projectName }}</span>
+  <!--[if mso]>
+    <i style="letter-spacing: 25px; mso-font-width: -100%">&nbsp;</i>
+  <![endif]-->
+</a>
+
+<p style="padding-top: 30px">Important: This link will expire in 15 minutes.</p>
+
+{% endblock %}
