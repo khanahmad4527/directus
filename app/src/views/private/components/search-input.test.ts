@@ -38,6 +38,42 @@ describe('Component', () => {
 		expect(wrapper.exists()).toBe(true);
 	});
 
+	describe('emitValue', () => {
+		it('should trim leading and trailing whitespace before emitting', async () => {
+			const wrapper = mount(SearchInput, {
+				props: {
+					modelValue: '',
+				},
+				global,
+			});
+
+			const input = wrapper.find('input');
+			(input.element as HTMLInputElement).value = '  post  ';
+			await input.trigger('input');
+
+			const emitted = wrapper.emitted('update:modelValue');
+			expect(emitted).toBeTruthy();
+			expect(emitted![emitted!.length - 1]).toEqual(['post']);
+		});
+
+		it('should emit null when the input contains only whitespace', async () => {
+			const wrapper = mount(SearchInput, {
+				props: {
+					modelValue: '',
+				},
+				global,
+			});
+
+			const input = wrapper.find('input');
+			(input.element as HTMLInputElement).value = '   ';
+			await input.trigger('input');
+
+			const emitted = wrapper.emitted('update:modelValue');
+			expect(emitted).toBeTruthy();
+			expect(emitted![emitted!.length - 1]).toEqual([null]);
+		});
+	});
+
 	it('should render action buttons disabled when disabled', () => {
 		const wrapper = mount(SearchInput, {
 			props: {
