@@ -541,7 +541,7 @@ const menuActive = computed(() => Boolean(currentlyEditing.value) || selectModal
 				<template v-if="!nonEditable || enableLink" #item-append="{ item }">
 					<div class="item-actions">
 						<RouterLink v-if="enableLink" v-slot="{ href, navigate }" :to="getLinkForItem(item)!" custom>
-							<VIcon v-if="(disabled && !nonEditable) || item.$type === 'created'" name="launch" />
+							<VIcon v-if="item.$type === 'created'" name="launch" />
 
 							<a
 								v-else
@@ -620,7 +620,7 @@ const menuActive = computed(() => Boolean(currentlyEditing.value) || selectModal
 
 							<div v-if="!nonEditable || enableLink" class="item-actions" @click.stop>
 								<RouterLink v-if="enableLink" v-slot="{ href, navigate }" :to="getLinkForItem(element)!" custom>
-									<VIcon v-if="(disabled && !nonEditable) || element.$type === 'created'" name="launch" />
+									<VIcon v-if="element.$type === 'created'" name="launch" />
 
 									<a
 										v-else

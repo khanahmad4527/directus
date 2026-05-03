@@ -214,13 +214,13 @@ describe('list-o2m', () => {
 				expect(wrapper.find('.item-actions .item-link').exists()).toBe(true);
 			});
 
-			it('should render non-clickable icon when disabled is true and nonEditable is false', () => {
+			it('should render clickable navigate link when disabled is true and nonEditable is false', () => {
 				const wrapper = mount(ListO2M, {
 					props: { ...listProps, enableLink: true, nonEditable: false, disabled: true },
 					global: globalWithRouterLink,
 				});
 
-				expect(wrapper.find('.item-actions .item-link').exists()).toBe(false);
+				expect(wrapper.find('.item-actions .item-link').exists()).toBe(true);
 			});
 		});
 
@@ -279,13 +279,13 @@ describe('list-o2m', () => {
 				expect(wrapper.find('.item-actions .item-link').exists()).toBe(true);
 			});
 
-			it('should render non-clickable icon when disabled is true and nonEditable is false', () => {
+			it('should render clickable navigate link when disabled is true and nonEditable is false', () => {
 				const wrapper = mount(ListO2M, {
 					props: { ...listProps, layout: LAYOUTS.TABLE, enableLink: true, nonEditable: false, disabled: true },
 					global: tableGlobalWithRouterLink,
 				});
 
-				expect(wrapper.find('.item-actions .item-link').exists()).toBe(false);
+				expect(wrapper.find('.item-actions .item-link').exists()).toBe(true);
 			});
 		});
 
