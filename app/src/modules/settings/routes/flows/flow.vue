@@ -31,6 +31,7 @@ import DisplayColor from '@/displays/color/color.vue';
 import { useExtensions } from '@/extensions';
 import { router } from '@/router';
 import { useFlowsStore } from '@/stores/flows';
+import { translate } from '@/utils/translate-literal';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { Vector2 } from '@/utils/vector2';
 import { PrivateViewHeaderBarActionButton } from '@/views/private';
@@ -609,7 +610,7 @@ function discardAndLeave() {
 
 <template>
 	<SettingsNotFound v-if="!flow && !loading" />
-	<PrivateView v-else :title="flow?.name ?? $t('loading')" show-back back-to="/settings/flows">
+	<PrivateView v-else :title="flow?.name ? translate(flow.name) : $t('loading')" show-back back-to="/settings/flows">
 		<template #headline>
 			<VBreadcrumb :items="[{ name: $t('flows'), to: '/settings/flows' }]" />
 		</template>
@@ -739,7 +740,7 @@ function discardAndLeave() {
 
 		<VDialog :model-value="confirmDelete" @esc="confirmDelete = false" @apply="deleteFlow">
 			<VCard>
-				<VCardTitle>{{ $t('flow_delete_confirm', { flow: flow?.name }) }}</VCardTitle>
+				<VCardTitle>{{ $t('flow_delete_confirm', { flow: flow?.name ? translate(flow.name) : '' }) }}</VCardTitle>
 
 				<VCardActions>
 					<VButton secondary @click="confirmDelete = false">{{ $t('cancel') }}</VButton>

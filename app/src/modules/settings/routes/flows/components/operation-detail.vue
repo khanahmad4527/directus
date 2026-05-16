@@ -15,6 +15,7 @@ import { useExtension } from '@/composables/use-extension';
 import { useExtensions } from '@/extensions';
 import ExtensionOptions from '@/modules/settings/routes/data-model/field-detail/shared/extension-options.vue';
 import { getDefaultValuesFromFields } from '@/utils/get-default-values-from-fields';
+import { translate as translateLiteral } from '@/utils/translate-literal';
 import { translate } from '@/utils/translate-object-values';
 import { PrivateViewHeaderBarActionButton } from '@/views/private';
 
@@ -146,7 +147,7 @@ function saveOperation() {
 	<VDrawer
 		:model-value="isOpen"
 		:title="$t(operationId === '+' ? 'create_operation' : 'edit_operation')"
-		:subtitle="flow.name"
+		:subtitle="translateLiteral(flow.name)"
 		icon="offline_bolt"
 		persistent
 		@cancel="$emit('cancel')"
