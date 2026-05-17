@@ -397,6 +397,8 @@ hidden_field: Hidden Field
 hidden_on_detail: Hidden on Detail
 clear_hidden_field: Clear Value(s)
 clear_value_on_save_when_hidden: Clear value(s) on save when hidden
+set_value: Set Value
+set_field_value_when_condition_matches: Set field value when condition matches
 readonly_field_label: Disable the field in the app
 required_readonly_field_warning:
   Enabling both readonly and required on a field prevents saving an item if the value is empty.

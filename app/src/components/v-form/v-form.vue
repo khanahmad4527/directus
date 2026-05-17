@@ -17,7 +17,7 @@ import { updateSystemDivider } from './utils/update-system-divider';
 import { CollabContext } from '@/composables/use-collab';
 import { useFieldsStore } from '@/stores/fields';
 import type { ContentVersionMaybeNew } from '@/types/versions';
-import { applyConditions } from '@/utils/apply-conditions';
+import { applyConditions, findMatchingCondition } from '@/utils/apply-conditions';
 import { extractFieldFromFunction } from '@/utils/extract-field-from-function';
 import { getDefaultValuesFromFields } from '@/utils/get-default-values-from-fields';
 import { pushGroupOptionsDown } from '@/utils/push-group-options-down';
@@ -301,6 +301,37 @@ function setValue(fieldKey: string, value: any, opts?: { force?: boolean }) {
 	edits[fieldKey] = value;
 	emit('update:modelValue', edits);
 }
+
+const lastAppliedConditionByField = new Map<string, string | null>();
+
+watch([() => props.primaryKey, () => props.version?.name ?? null], () => lastAppliedConditionByField.clear());
+
+watch(
+	[() => values.value, () => fieldDefinitions.value, () => props.version],
+	() => {
+		for (const field of fieldDefinitions.value) {
+			if (!field.meta?.conditions?.length) continue;
+
+			const matched = findMatchingCondition(values.value, field, props.version);
+			const currentName = matched?.name ?? null;
+
+			if (!lastAppliedConditionByField.has(field.field)) {
+				lastAppliedConditionByField.set(field.field, currentName);
+				continue;
+			}
+
+			const prevName = lastAppliedConditionByField.get(field.field) ?? null;
+			if (currentName === prevName) continue;
+
+			lastAppliedConditionByField.set(field.field, currentName);
+
+			if (matched?.set_value === true && matched.value !== undefined) {
+				setValue(field.field, matched.value, { force: true });
+			}
+		}
+	},
+	{ flush: 'post', immediate: true },
+);
 
 function apply(updates: { [field: string]: any }) {
 	const updatableKeys = props.batchMode

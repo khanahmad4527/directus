@@ -35,6 +35,7 @@ import { useRelationsStore } from '@/stores/relations';
 import { clearHiddenFieldsByCondition } from '@/utils/clear-hidden-fields-by-condition';
 import { getDefaultValuesFromFields } from '@/utils/get-default-values-from-fields';
 import { mergeItemData } from '@/utils/merge-item-data';
+import { setConditionalValues } from '@/utils/set-conditional-values';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { validateItem } from '@/utils/validate-item';
 import CollabIndicatorHeader from '@/views/private/components/collab/CollabIndicatorHeader.vue';
@@ -568,10 +569,24 @@ function useActions() {
 			initialValues.value,
 		);
 
+		internalEdits.value = setConditionalValues(
+			internalEdits.value,
+			fieldsWithoutCircular.value,
+			mainDefaults,
+			initialValues.value,
+		);
+
 		if (props.junctionField && internalEdits.value[props.junctionField]) {
 			const junctionDefaults = unref(getDefaultValuesFromFields(relatedCollectionFields.value));
 
 			internalEdits.value[props.junctionField] = clearHiddenFieldsByCondition(
+				internalEdits.value[props.junctionField],
+				relatedCollectionFields.value,
+				junctionDefaults,
+				initialValues.value?.[props.junctionField],
+			);
+
+			internalEdits.value[props.junctionField] = setConditionalValues(
 				internalEdits.value[props.junctionField],
 				relatedCollectionFields.value,
 				junctionDefaults,

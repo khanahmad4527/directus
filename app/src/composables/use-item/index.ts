@@ -21,6 +21,7 @@ import { getDefaultValuesFromFields } from '@/utils/get-default-values-from-fiel
 import { mergeItemData } from '@/utils/merge-item-data';
 import { notify } from '@/utils/notify';
 import { pushGroupOptionsDown } from '@/utils/push-group-options-down';
+import { setConditionalValues } from '@/utils/set-conditional-values';
 import { translate } from '@/utils/translate-object-values';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { validateItem } from '@/utils/validate-item';
@@ -151,7 +152,14 @@ export function useItem<T extends Item>(
 
 		const editsWithClearedValues = clearHiddenFieldsByCondition(edits.value, fields, defaultValues.value, item.value);
 
-		const payloadToValidate = mergeItemData(defaultValues.value, item.value ?? {}, editsWithClearedValues);
+		const editsWithConditionalValues = setConditionalValues(
+			editsWithClearedValues,
+			fields,
+			defaultValues.value,
+			item.value,
+		);
+
+		const payloadToValidate = mergeItemData(defaultValues.value, item.value ?? {}, editsWithConditionalValues);
 
 		const errors = validateItem(payloadToValidate, fields, isNew.value);
 		if (nestedValidationErrors.value?.length) errors.push(...nestedValidationErrors.value);
@@ -169,7 +177,7 @@ export function useItem<T extends Item>(
 				response = await sdk.request<T>(
 					requestEndpoint(getEndpoint(collection.value), {
 						method: 'POST',
-						body: editsWithClearedValues,
+						body: editsWithConditionalValues,
 					}),
 				);
 
@@ -180,7 +188,7 @@ export function useItem<T extends Item>(
 				response = await sdk.request<T>(
 					requestEndpoint(itemEndpoint.value, {
 						method: 'PATCH',
-						body: editsWithClearedValues,
+						body: editsWithConditionalValues,
 					}),
 				);
 

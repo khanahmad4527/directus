@@ -15,6 +15,55 @@ const { loading, field, collection } = storeToRefs(fieldDetailStore);
 const interfaceId = computed(() => field.value.meta?.interface ?? null);
 const conditions = syncFieldDetailStoreProperty('field.meta.conditions');
 
+const valueFieldDef = computed<DeepPartial<Field>>(() => {
+	const targetType = field.value.type;
+
+	const base: DeepPartial<Field> = {
+		field: 'value',
+		name: t('value'),
+		type: 'json',
+		meta: {
+			readonly: true,
+			width: 'half',
+			conditions: [
+				{
+					rule: { set_value: { _eq: true } },
+					readonly: false,
+				},
+			],
+		},
+	};
+
+	if (targetType === 'boolean') {
+		base.meta!.interface = 'select-dropdown';
+
+		base.meta!.options = {
+			choices: [
+				{ text: 'true', value: true },
+				{ text: 'false', value: false },
+				{ text: 'NULL', value: null },
+			],
+		};
+	} else if (['integer', 'bigInteger', 'float', 'decimal'].includes(targetType as string)) {
+		base.meta!.interface = 'input';
+		base.meta!.options = { type: 'number', placeholder: t('enter_a_value') };
+	} else if (targetType === 'text') {
+		base.meta!.interface = 'input-multiline';
+		base.meta!.options = { placeholder: t('enter_a_value') };
+	} else if (targetType === 'json') {
+		base.meta!.interface = 'input-code';
+		base.meta!.options = { language: 'JSON', placeholder: t('enter_a_value') };
+	} else if (['timestamp', 'dateTime', 'date', 'time'].includes(targetType as string)) {
+		base.meta!.interface = 'datetime';
+		base.meta!.options = { type: targetType };
+	} else {
+		base.meta!.interface = 'input';
+		base.meta!.options = { placeholder: t('enter_a_value') };
+	}
+
+	return base;
+});
+
 const conditionsSync = computed({
 	get() {
 		return { conditions: conditions.value };
@@ -109,6 +158,19 @@ const repeaterFields = computed<DeepPartial<Field>[]>(() => [
 			],
 		},
 	},
+	{
+		field: 'set_value',
+		name: t('set_value'),
+		type: 'boolean',
+		meta: {
+			interface: 'boolean',
+			options: {
+				label: t('set_field_value_when_condition_matches'),
+			},
+			width: 'half',
+		},
+	},
+	valueFieldDef.value,
 	{
 		field: 'options',
 		name: t('interface_options'),
